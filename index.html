@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spotify</title>
+    <style>
+      body {
+        display: flex;
+      }
+
+      .spotify {
+        display: flex;
+        align-items: center;
+        column-gap: 16px;
+
+        /* Font */
+        font-family: Inter;
+        font-size: 24px;
+        color: #fff;
+      }
+
+      .image {
+        width: 52px;
+        height: 52px;
+        border-radius: 8px;
+        background-color: #e9e9e9;
+        overflow: hidden;
+      }
+
+      #cover {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      #artist {
+        opacity: 0.6;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="spotify">
+      <div class="image">
+        <img id="cover" src="{{ .Track.ArtworkURL }}" />
+      </div>
+      <div class="info">
+        <span id="name">{{ .Track.Name }}</span>
+        <div id="artist">{{ .Track.Artist }}</div>
+      </div>
+    </div>
+  </body>
+  <script>
+    const fetchCurrentTrack = () =>
+      fetch("http://localhost:{{ .Port }}/track").then((resp) => resp.json());
+
+    const artistEl = document.querySelector("#artist");
+    const coverEl = document.querySelector("#cover");
+    const nameEl = document.querySelector("#name");
+
+    const render = async () => {
+      const currentTrack = await fetchCurrentTrack();
+
+      if (!currentTrack || !currentTrack.name) return;
+
+      coverEl.src = currentTrack.artworkUrl;
+      nameEl.innerHTML = currentTrack.name;
+      artistEl.innerHTML = currentTrack.artist;
+    };
+
+    setInterval(render, {{ .Refresh }});
+  </script>
+</html>
