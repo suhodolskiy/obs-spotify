@@ -1,16 +1,18 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"text/template"
 	"time"
 )
+
+//go:embed index.html
+var tpl embed.FS
 
 const command = `
 	tell application "Spotify"
@@ -77,43 +79,46 @@ func main() {
 	port := flag.String("port", "5783", "http port")
 	flag.Parse()
 
-	ex, _ := os.Executable()
-	tmpl, err := template.ParseFiles(filepath.Join(ex, "../index.html"))
+	tmpl, err := template.ParseFS(tpl, "index.html")
 
 	if err != nil {
 		panic(err)
 	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		response := Response{
-			Track:   getCurrentTrack(),
-			Refresh: time.Second.Milliseconds(),
-			Port:    *port,
-		}
-
-		refreshQueryParam := req.URL.Query().Get("refresh")
-
-		if refreshQueryParam != "" {
-			if duration, err := time.ParseDuration(refreshQueryParam); err == nil {
-				response.Refresh = duration.Milliseconds()
+	http.HandleFunc(
+		"/", func(w http.ResponseWriter, req *http.Request) {
+			response := Response{
+				Track:   getCurrentTrack(),
+				Refresh: time.Second.Milliseconds(),
+				Port:    *port,
 			}
-		}
 
-		if err := tmpl.Execute(w, response); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	})
+			refreshQueryParam := req.URL.Query().Get("refresh")
 
-	http.HandleFunc("/track", func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+			if refreshQueryParam != "" {
+				if duration, err := time.ParseDuration(refreshQueryParam); err == nil {
+					response.Refresh = duration.Milliseconds()
+				}
+			}
 
-		resp, _ := json.Marshal(getCurrentTrack())
+			if err := tmpl.Execute(w, response); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		},
+	)
 
-		fmt.Fprint(w, string(resp))
-	})
+	http.HandleFunc(
+		"/track", func(w http.ResponseWriter, req *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	fmt.Printf("The server is running on port %s!", *port)
+			resp, _ := json.Marshal(getCurrentTrack())
+
+			fmt.Fprint(w, string(resp))
+		},
+	)
+
+	fmt.Printf("Add Overlay to OBS Studio with URL: http://localhost:%s/", *port)
 
 	http.ListenAndServe(fmt.Sprintf(":%s", *port), nil)
 }
